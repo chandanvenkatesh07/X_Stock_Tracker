@@ -239,7 +239,7 @@ async def run_playwright_scrape(max_tweets: int, watermark: Optional[str], max_a
 
         context = await p.chromium.launch_persistent_context(**browser_kwargs)
         page = context.pages[0] if context.pages else await context.new_page()
-        await page.goto("https://x.com/home", wait_until="domcontentloaded")
+        await page.goto("https://x.com/home?f=live", wait_until="domcontentloaded")
 
         # give user a chance to login manually on first run
         for _ in range(120):
@@ -265,18 +265,30 @@ async def run_playwright_scrape(max_tweets: int, watermark: Optional[str], max_a
 
         if not following_ok:
             try:
-                # Fallback text click in case role mapping changes
-                following = page.get_by_text("Following", exact=True)
-                if await following.count() > 0:
-                    await following.first.click(timeout=3000)
-                    await asyncio.sleep(1)
-                    following_ok = True
+                # Fallback: any tab containing Following text
+                tabs = page.locator("[role='tab']")
+                tcount = await tabs.count()
+                for ti in range(tcount):
+                    tab = tabs.nth(ti)
+                    label = (await tab.inner_text() or "").strip().lower()
+                    if "following" in label:
+                        await tab.click(timeout=3000)
+                        await asyncio.sleep(1)
+                        selected = (await tab.get_attribute("aria-selected")) == "true"
+                        following_ok = bool(selected)
+                        break
             except Exception:
                 following_ok = False
 
+        # Last fallback: if URL already indicates chronological view, allow scrape.
+        if not following_ok:
+            url = page.url.lower()
+            if "f=live" in url or "f=following" in url:
+                following_ok = True
+
         if not following_ok:
             await context.close()
-            raise RuntimeError("Could not switch to Following tab. Aborting scrape to avoid For You timeline.")
+            raise RuntimeError("Could not switch to Following tab. Open X home once, click Following manually, then retry.")
 
         while len(scraped) < max_tweets:
             articles = page.locator("article[data-testid='tweet']")
