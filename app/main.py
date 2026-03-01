@@ -152,13 +152,29 @@ BUYING = {"bought", "buying", "added", "opened a position", "went long", "entere
 WATCHING = {"watching", "on my radar", "looking at", "considering", "might buy", "interested", "eyeing"}
 SOLD = {"sold", "exited", "closed", "took profits", "trimmed", "reduced", "out of", "stopped out"}
 BLACKLIST = {"ATH", "IPO", "CEO", "GDP", "PE", "EPS", "USD", "US", "FED", "IMO", "FOMO", "ATL", "FYI", "USA", "AI", "DD", "LOL", "RIP", "SEC", "NFT"}
+CRYPTO_TICKERS = {
+    "BTC", "ETH", "SOL", "XRP", "DOGE", "ADA", "BNB", "DOT", "AVAX", "MATIC", "LINK", "LTC", "BCH", "ATOM", "TRX", "XLM", "UNI", "AAVE", "NEAR", "ARB", "OP"
+}
+NO_CRYPTO = True
 
 
 def find_tickers(text: str) -> list[str]:
     out = set(re.findall(r"\$([A-Z]{1,5})\b", text or ""))
+
+    # Remove obvious non-tickers and crypto symbols
     for b in list(out):
         if b in BLACKLIST:
             out.remove(b)
+            continue
+        if NO_CRYPTO and b in CRYPTO_TICKERS:
+            out.remove(b)
+            continue
+
+    # If tweet is clearly about crypto pairs, ignore all extracted tickers
+    upper_text = (text or "").upper()
+    if NO_CRYPTO and re.search(r"\b[A-Z]{2,10}[-/](USD|USDT|USDC|BTC|ETH)\b", upper_text):
+        return []
+
     return sorted(out)
 
 
@@ -182,6 +198,26 @@ def classify_intent(text: str) -> tuple[str, int]:
     if any(k in t for k in WATCHING):
         return "WATCHING", 75
     return "UNCLEAR", 50
+
+
+_QUOTE_TYPE_CACHE: dict[str, str] = {}
+
+
+def is_allowed_security_ticker(ticker: str) -> bool:
+    """Allow stocks/ETFs/etc; block crypto spot tickers."""
+    if NO_CRYPTO and ticker in CRYPTO_TICKERS:
+        return False
+    qt = _QUOTE_TYPE_CACHE.get(ticker)
+    if qt is None:
+        try:
+            info = yf.Ticker(ticker).info
+            qt = str(info.get("quoteType") or "").upper()
+        except Exception:
+            qt = ""
+        _QUOTE_TYPE_CACHE[ticker] = qt
+    if NO_CRYPTO and qt in {"CRYPTOCURRENCY", "CRYPTO"}:
+        return False
+    return True
 
 
 def yf_enrich(ticker: str) -> dict:
@@ -486,6 +522,11 @@ async def scrape_trigger(max_tweets: int = Form(120), max_age_days: int = Form(7
     ingested = 0
     newest_id = state.last_tweet_id
     for r in records:
+        # Final guardrail: only keep security tickers (no crypto)
+        filtered_tickers = [t for t in r.tickers if is_allowed_security_ticker(t)]
+        if not filtered_tickers:
+            continue
+
         exists = session.exec(select(ScrapedTweet).where(ScrapedTweet.tweet_id == r.tweet_id)).first()
         if exists:
             continue
@@ -497,7 +538,7 @@ async def scrape_trigger(max_tweets: int = Form(120), max_age_days: int = Form(7
             tweet_url=r.url,
             author_handle=r.author_handle,
             author_display_name=r.author_display_name,
-            tickers_mentioned=json.dumps(r.tickers),
+            tickers_mentioned=json.dumps(filtered_tickers),
             direction=direction,
             direction_confidence=dconf,
             investment_intent=intent,
@@ -514,7 +555,7 @@ async def scrape_trigger(max_tweets: int = Form(120), max_age_days: int = Form(7
         if not newest_id or int(r.tweet_id) > int(newest_id):
             newest_id = r.tweet_id
 
-        for ticker in r.tickers:
+        for ticker in filtered_tickers:
             rt = session.exec(select(RunningTracker).where(RunningTracker.ticker == ticker)).first()
             if not rt:
                 meta = yf_enrich(ticker)
