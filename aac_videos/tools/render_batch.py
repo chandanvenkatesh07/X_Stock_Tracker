@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,17 +15,33 @@ def run(cmd):
     subprocess.run(cmd, check=True)
 
 
-def add_subtitle(in_mp4: Path, out_mp4: Path, phrase: str):
+def synth_tts(phrase: str, gender: str, out_audio: Path):
+    voice = "en-US-GuyNeural" if gender == "male" else "en-US-JennyNeural"
+    run([
+        sys.executable, "-m", "edge_tts",
+        "--voice", voice,
+        "--text", phrase,
+        "--write-media", str(out_audio),
+    ])
+
+
+def add_subtitle_and_audio(in_mp4: Path, out_mp4: Path, phrase: str, gender: str):
     srt = in_mp4.with_suffix(".srt")
+    tts = in_mp4.with_suffix(".mp3")
     srt.write_text(
-        "1\n00:00:00,600 --> 00:00:05,800\n" + phrase + "\n",
+        "1\n00:00:00,500 --> 00:00:05,700\n" + phrase + "\n",
         encoding="utf-8",
     )
+    synth_tts(phrase, gender, tts)
     run([
-        "ffmpeg", "-y", "-i", str(in_mp4),
+        "ffmpeg", "-y",
+        "-i", str(in_mp4),
+        "-i", str(tts),
         "-vf", f"subtitles={srt}",
-        "-c:v", "libx264", "-crf", "20", "-preset", "medium",
-        "-c:a", "aac", "-b:a", "128k", str(out_mp4)
+        "-c:v", "libx264", "-crf", "17", "-preset", "medium",
+        "-c:a", "aac", "-b:a", "192k",
+        "-shortest",
+        str(out_mp4)
     ])
 
 
@@ -45,10 +62,10 @@ def main(limit=8):
                 "--gender", gender,
                 "--action", "auto",
             ])
-            add_subtitle(raw, final, b["phrase"])
+            add_subtitle_and_audio(raw, final, b["phrase"], gender)
             raw.unlink(missing_ok=True)
-            srt = raw.with_suffix('.srt')
-            srt.unlink(missing_ok=True)
+            raw.with_suffix('.srt').unlink(missing_ok=True)
+            raw.with_suffix('.mp3').unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
