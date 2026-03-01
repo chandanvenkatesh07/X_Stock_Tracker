@@ -20,27 +20,39 @@ def synth_tts(phrase: str, gender: str, out_audio: Path):
     run([
         sys.executable, "-m", "edge_tts",
         "--voice", voice,
+        "--rate", "+0%",
         "--text", phrase,
         "--write-media", str(out_audio),
+    ])
+
+
+def pad_audio_to_6s(in_audio: Path, out_audio: Path):
+    run([
+        "ffmpeg", "-y", "-i", str(in_audio),
+        "-af", "apad=pad_dur=6",
+        "-t", "6",
+        str(out_audio)
     ])
 
 
 def add_subtitle_and_audio(in_mp4: Path, out_mp4: Path, phrase: str, gender: str):
     srt = in_mp4.with_suffix(".srt")
     tts = in_mp4.with_suffix(".mp3")
+    tts6 = in_mp4.with_suffix(".padded.wav")
     srt.write_text(
         "1\n00:00:00,500 --> 00:00:05,700\n" + phrase + "\n",
         encoding="utf-8",
     )
     synth_tts(phrase, gender, tts)
+    pad_audio_to_6s(tts, tts6)
     run([
         "ffmpeg", "-y",
         "-i", str(in_mp4),
-        "-i", str(tts),
+        "-i", str(tts6),
         "-vf", f"subtitles={srt}",
+        "-t", "6",
         "-c:v", "libx264", "-crf", "17", "-preset", "medium",
         "-c:a", "aac", "-b:a", "192k",
-        "-shortest",
         str(out_mp4)
     ])
 
@@ -66,6 +78,7 @@ def main(limit=8):
             raw.unlink(missing_ok=True)
             raw.with_suffix('.srt').unlink(missing_ok=True)
             raw.with_suffix('.mp3').unlink(missing_ok=True)
+            raw.with_suffix('.padded.wav').unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

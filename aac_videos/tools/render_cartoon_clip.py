@@ -118,11 +118,13 @@ def kf(obj, frame, **kwargs):
 
 
 def animate(action, body, head, arm_l, arm_r):
-    # baseline subtle bounce
+    # baseline visible motion so clips are clearly animated
     kf(body, 1, location=(0, 0, 1.0))
-    kf(body, 36, location=(0, 0, 1.03))
-    kf(body, 72, location=(0, 0, 1.0))
-    kf(body, 108, location=(0, 0, 1.03))
+    kf(body, 24, location=(-0.05, 0, 1.05))
+    kf(body, 48, location=(0.05, 0, 1.0))
+    kf(body, 72, location=(-0.05, 0, 1.05))
+    kf(body, 96, location=(0.05, 0, 1.0))
+    kf(body, 120, location=(-0.05, 0, 1.05))
     kf(body, 144, location=(0, 0, 1.0))
 
     if action == "yes":
