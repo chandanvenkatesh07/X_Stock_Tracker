@@ -158,6 +158,22 @@ CRYPTO_TICKERS = {
 NO_CRYPTO = True
 
 
+def best_quality_image_url(src: str) -> str:
+    """Prefer highest-resolution variant for X image CDN URLs."""
+    if not src:
+        return src
+    if "pbs.twimg.com/media/" in src:
+        # Force original size where available
+        if "?" in src:
+            # normalize any existing name= parameter
+            src = re.sub(r"([?&])name=[^&]*", r"\1name=orig", src)
+            if "name=orig" not in src:
+                src += "&name=orig"
+        else:
+            src = src + "?name=orig"
+    return src
+
+
 def find_tickers(text: str) -> list[str]:
     out = set(re.findall(r"\$([A-Z]{1,5})\b", text or ""))
 
@@ -409,10 +425,11 @@ async def run_playwright_scrape(max_tweets: int, watermark: Optional[str], max_a
                         src = await media.nth(mi).get_attribute("src")
                         if not src or "profile_images" in src:
                             continue
+                        src = best_quality_image_url(src)
                         try:
                             import httpx
 
-                            resp = httpx.get(src, timeout=10)
+                            resp = httpx.get(src, timeout=15)
                             if resp.status_code == 200 and resp.content:
                                 ext = ".jpg"
                                 ticker_dir = IMG_DIR / tickers[0]
