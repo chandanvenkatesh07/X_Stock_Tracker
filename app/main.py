@@ -451,6 +451,19 @@ def dashboard(request: Request, author: Optional[str] = None, session: Session =
                 filtered_primary.append(p)
         primary = filtered_primary
 
+    primary_meta: dict[str, dict] = {}
+    for p in primary:
+        linked = session.get(RunningTracker, p.running_tracker_id)
+        if linked:
+            try:
+                tracked_by = len(json.loads(linked.unique_sources or "[]"))
+            except Exception:
+                tracked_by = 0
+            primary_meta[p.id] = {
+                "tracked_by": tracked_by,
+                "repeated": linked.mention_count,
+            }
+
     return templates.TemplateResponse(
         "index.html",
         {
@@ -461,6 +474,7 @@ def dashboard(request: Request, author: Optional[str] = None, session: Session =
             "json": json,
             "authors": all_authors,
             "selected_author": author or "",
+            "primary_meta": primary_meta,
         },
     )
 

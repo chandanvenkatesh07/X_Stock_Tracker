@@ -54,7 +54,8 @@
             <div class="flex justify-between items-center mb-2">
               <div>
                 <p class="text-lg font-bold">${{ r.ticker }} — {{ r.company_name }}</p>
-                <p class="text-xs text-slate-400">{{ r.sector }} • {{ r.asset_class }} • {{ r.mention_count }} mentions • {{ r.sentiment_score }}% bullish</p>
+                {% set tracked_by = (json.loads(r.unique_sources)|length) if r.unique_sources else 0 %}
+                <p class="text-xs text-slate-400">{{ r.sector }} • {{ r.asset_class }} • Tracked By: {{ tracked_by }} • Repeated: {{ r.mention_count }} • {{ r.sentiment_score }}% bullish</p>
               </div>
               <span class="text-sm px-2 py-1 rounded bg-slate-800">{{ r.status }}</span>
             </div>
@@ -86,7 +87,8 @@
             <div class="flex justify-between items-center mb-2">
               <div>
                 <p class="text-lg font-bold">${{ p.ticker }} — {{ p.company_name }}</p>
-                <p class="text-xs text-slate-400">{{ p.sector }} • {{ p.asset_class }} • Conviction: {{ p.conviction }}</p>
+                {% set pm = primary_meta.get(p.id, {}) %}
+                <p class="text-xs text-slate-400">{{ p.sector }} • {{ p.asset_class }} • Tracked By: {{ pm.get('tracked_by', 0) }} • Repeated: {{ pm.get('repeated', 0) }} • Conviction: {{ p.conviction }}</p>
               </div>
               <span class="text-sm px-2 py-1 rounded bg-indigo-800">{{ p.status }}</span>
             </div>
