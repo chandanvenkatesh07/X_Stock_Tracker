@@ -53,7 +53,7 @@
           <div class="rounded-xl border border-slate-800 p-4 bg-slate-900/60">
             <div class="flex justify-between items-center mb-2">
               <div>
-                <p class="text-lg font-bold">${{ r.ticker }} — {{ r.company_name }}</p>
+                <p class="text-lg font-bold"><a class="text-sky-300 hover:text-sky-200 underline" href="https://www.tradingview.com/chart/?symbol={{ r.ticker }}" target="_blank" rel="noopener noreferrer">${{ r.ticker }}</a> — {{ r.company_name }}</p>
                 {% set tracked_by = (json.loads(r.unique_sources)|length) if r.unique_sources else 0 %}
                 <p class="text-xs text-slate-400">{{ r.sector }} • {{ r.asset_class }} • Tracked By: {{ tracked_by }} • Repeated: {{ r.mention_count }} • {{ r.sentiment_score }}% bullish</p>
               </div>
@@ -86,7 +86,7 @@
           <div class="rounded-xl border border-slate-800 p-4 bg-slate-900/60">
             <div class="flex justify-between items-center mb-2">
               <div>
-                <p class="text-lg font-bold">${{ p.ticker }} — {{ p.company_name }}</p>
+                <p class="text-lg font-bold"><a class="text-sky-300 hover:text-sky-200 underline" href="https://www.tradingview.com/chart/?symbol={{ p.ticker }}" target="_blank" rel="noopener noreferrer">${{ p.ticker }}</a> — {{ p.company_name }}</p>
                 {% set pm = primary_meta.get(p.id, {}) %}
                 <p class="text-xs text-slate-400">{{ p.sector }} • {{ p.asset_class }} • Tracked By: {{ pm.get('tracked_by', 0) }} • Repeated: {{ pm.get('repeated', 0) }} • Conviction: {{ p.conviction }}</p>
               </div>
