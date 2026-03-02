@@ -492,7 +492,8 @@ def dashboard(request: Request, author: Optional[str] = None, session: Session =
     primary = session.exec(select(PrimaryTracker).where(PrimaryTracker.status != "ARCHIVED")).all()
     state = session.get(ScrapeState, "singleton")
 
-    all_authors = sorted({t.author_handle for t in session.exec(select(ScrapedTweet)).all() if t.author_handle})
+    tweets_all = session.exec(select(ScrapedTweet)).all()
+    all_authors = sorted({t.author_handle for t in tweets_all if t.author_handle})
     if author:
         running = [r for r in running if author in set(json.loads(r.unique_sources))]
         filtered_primary: list[PrimaryTracker] = []
@@ -517,6 +518,15 @@ def dashboard(request: Request, author: Optional[str] = None, session: Session =
                 "repeated": linked.mention_count,
             }
 
+    screenshot_count = sum(1 for t in tweets_all if (t.screenshot_path or "").strip())
+    embedded_image_count = 0
+    for t in tweets_all:
+        try:
+            embedded_image_count += len(json.loads(t.embedded_image_paths or "[]"))
+        except Exception:
+            pass
+    top_tickers = sorted(running, key=lambda x: x.mention_count, reverse=True)[:5]
+
     return templates.TemplateResponse(
         "index.html",
         {
@@ -528,6 +538,14 @@ def dashboard(request: Request, author: Optional[str] = None, session: Session =
             "authors": all_authors,
             "selected_author": author or "",
             "primary_meta": primary_meta,
+            "summary": {
+                "tweets": len(tweets_all),
+                "tickers": len(running),
+                "authors": len(all_authors),
+                "screenshots": screenshot_count,
+                "embedded_images": embedded_image_count,
+                "top_tickers": top_tickers,
+            },
         },
     )
 
