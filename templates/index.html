@@ -47,15 +47,16 @@
 
     <div class="mb-6 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
       <h3 class="text-lg font-semibold mb-2">Last Run Summary</h3>
+      {% set s = summary|default({}) %}
       <p class="text-sm text-slate-300 mb-2">Last scrape run: <span class="text-sky-300">{{ state.last_scrape_at or 'Never' }}</span></p>
       <div class="text-sm text-slate-300 grid grid-cols-2 md:grid-cols-5 gap-2 mb-3">
-        <div>Tweets: <span class="text-white font-semibold">{{ summary.tweets }}</span></div>
-        <div>Tickers: <span class="text-white font-semibold">{{ summary.tickers }}</span></div>
-        <div>People: <span class="text-white font-semibold">{{ summary.authors }}</span></div>
-        <div>Screenshots: <span class="text-white font-semibold">{{ summary.screenshots }}</span></div>
-        <div>Embedded Images: <span class="text-white font-semibold">{{ summary.embedded_images }}</span></div>
+        <div>Tweets: <span class="text-white font-semibold">{{ s.get('tweets', 0) }}</span></div>
+        <div>Tickers: <span class="text-white font-semibold">{{ s.get('tickers', 0) }}</span></div>
+        <div>People: <span class="text-white font-semibold">{{ s.get('authors', 0) }}</span></div>
+        <div>Screenshots: <span class="text-white font-semibold">{{ s.get('screenshots', 0) }}</span></div>
+        <div>Embedded Images: <span class="text-white font-semibold">{{ s.get('embedded_images', 0) }}</span></div>
       </div>
-      <p class="text-xs text-slate-400">Top collected tickers: {% for t in summary.top_tickers %}<span class="mr-2">${{t.ticker}} ({{t.mention_count}})</span>{% else %}none{% endfor %}</p>
+      <p class="text-xs text-slate-400">Top collected tickers: {% for t in s.get('top_tickers', []) %}<span class="mr-2">${{t.ticker}} ({{t.mention_count}})</span>{% else %}none{% endfor %}</p>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
