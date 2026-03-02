@@ -271,6 +271,12 @@ async def run_playwright_scrape(max_tweets: int, watermark: Optional[str], max_a
     scraped: list[ScrapedRecord] = []
     seen_ids: set[str] = set()
     cutoff_ts = utcnow().timestamp() - (max_age_days * 86400)
+    hold_seconds = max(0, int(os.getenv("BROWSER_HOLD_SECONDS", "15")))
+
+    async def close_context(ctx):
+        if hold_seconds > 0:
+            await asyncio.sleep(hold_seconds)
+        await ctx.close()
 
     async with async_playwright() as p:
         browser_kwargs = dict(
@@ -339,7 +345,7 @@ async def run_playwright_scrape(max_tweets: int, watermark: Optional[str], max_a
                 following_ok = True
 
         if not following_ok:
-            await context.close()
+            await close_context(context)
             raise RuntimeError("Could not switch to Following tab. Open X home once, click Following manually, then retry.")
 
         while len(scraped) < max_tweets:
@@ -359,7 +365,7 @@ async def run_playwright_scrape(max_tweets: int, watermark: Optional[str], max_a
                     if tid in seen_ids:
                         continue
                     if watermark and tid == watermark:
-                        await context.close()
+                        await close_context(context)
                         return scraped
 
                     # Stop once timeline is older than max_age_days (works best with Following tab)
@@ -374,7 +380,7 @@ async def run_playwright_scrape(max_tweets: int, watermark: Optional[str], max_a
                             except Exception:
                                 tweet_ts = None
                     if tweet_ts is not None and tweet_ts < cutoff_ts:
-                        await context.close()
+                        await close_context(context)
                         return scraped
 
                     seen_ids.add(tid)
@@ -464,7 +470,7 @@ async def run_playwright_scrape(max_tweets: int, watermark: Optional[str], max_a
             await page.mouse.wheel(0, random.randint(1000, 1800))
             await asyncio.sleep(random.uniform(0.8, 1.7))
 
-        await context.close()
+        await close_context(context)
     return scraped
 
 
