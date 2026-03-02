@@ -32,14 +32,31 @@
     </div>
 
     <div class="mb-6">
-      <form method="get" action="/" class="flex gap-2 items-center">
-        <label class="text-sm text-slate-300">Filter by user:</label>
+      <form method="get" action="/" class="flex gap-2 items-center flex-wrap">
+        <label class="text-sm text-slate-300">User:</label>
         <select name="author" class="bg-slate-900 border border-slate-700 rounded px-2 py-1">
           <option value="">All users</option>
           {% for a in authors %}
           <option value="{{a}}" {% if selected_author==a %}selected{% endif %}>{{a}}</option>
           {% endfor %}
         </select>
+
+        <label class="text-sm text-slate-300">Sector:</label>
+        <select name="sector" class="bg-slate-900 border border-slate-700 rounded px-2 py-1">
+          <option value="">All sectors</option>
+          {% for s in sectors %}
+          <option value="{{s}}" {% if selected_sector==s %}selected{% endif %}>{{s}}</option>
+          {% endfor %}
+        </select>
+
+        <label class="text-sm text-slate-300">Sort:</label>
+        <select name="sort_by" class="bg-slate-900 border border-slate-700 rounded px-2 py-1">
+          <option value="recent" {% if sort_by=='recent' %}selected{% endif %}>Most Recent</option>
+          <option value="mentions" {% if sort_by=='mentions' %}selected{% endif %}>Most Mentioned</option>
+          <option value="tracked_by" {% if sort_by=='tracked_by' %}selected{% endif %}>Most Tracked By</option>
+          <option value="sentiment" {% if sort_by=='sentiment' %}selected{% endif %}>Highest Sentiment</option>
+        </select>
+
         <button class="px-3 py-1 rounded bg-slate-700 hover:bg-slate-600">Apply</button>
         <a href="/" class="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700">Clear</a>
       </form>

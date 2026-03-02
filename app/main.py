@@ -493,13 +493,21 @@ def _startup():
 
 
 @app.get("/", response_class=HTMLResponse)
-def dashboard(request: Request, author: Optional[str] = None, session: Session = Depends(get_session)):
+def dashboard(
+    request: Request,
+    author: Optional[str] = None,
+    sector: Optional[str] = None,
+    sort_by: str = "recent",
+    session: Session = Depends(get_session),
+):
     running = session.exec(select(RunningTracker).where(RunningTracker.status != "DISMISSED")).all()
     primary = session.exec(select(PrimaryTracker).where(PrimaryTracker.status != "ARCHIVED")).all()
     state = session.get(ScrapeState, "singleton")
 
     tweets_all = session.exec(select(ScrapedTweet)).all()
     all_authors = sorted({t.author_handle for t in tweets_all if t.author_handle})
+    all_sectors = sorted({(r.sector or "Unclassified") for r in running})
+
     if author:
         running = [r for r in running if author in set(json.loads(r.unique_sources))]
         filtered_primary: list[PrimaryTracker] = []
@@ -510,6 +518,24 @@ def dashboard(request: Request, author: Optional[str] = None, session: Session =
             if author in set(json.loads(linked.unique_sources)):
                 filtered_primary.append(p)
         primary = filtered_primary
+
+    if sector:
+        running = [r for r in running if (r.sector or "Unclassified") == sector]
+        filtered_primary2: list[PrimaryTracker] = []
+        for p in primary:
+            if (p.sector or "Unclassified") == sector:
+                filtered_primary2.append(p)
+        primary = filtered_primary2
+
+    # Sorting options: recent, mentions, sentiment, tracked_by
+    if sort_by == "mentions":
+        running = sorted(running, key=lambda r: r.mention_count, reverse=True)
+    elif sort_by == "sentiment":
+        running = sorted(running, key=lambda r: r.sentiment_score, reverse=True)
+    elif sort_by == "tracked_by":
+        running = sorted(running, key=lambda r: len(json.loads(r.unique_sources or "[]")), reverse=True)
+    else:
+        running = sorted(running, key=lambda r: r.last_seen_at or "", reverse=True)
 
     primary_meta: dict[str, dict] = {}
     for p in primary:
@@ -543,6 +569,9 @@ def dashboard(request: Request, author: Optional[str] = None, session: Session =
             "json": json,
             "authors": all_authors,
             "selected_author": author or "",
+            "sectors": all_sectors,
+            "selected_sector": sector or "",
+            "sort_by": sort_by,
             "primary_meta": primary_meta,
             "summary": {
                 "tweets": len(tweets_all),
